@@ -15,13 +15,18 @@ Reading images via ACP in agent-shell is broken - it fills up the context window
   ```
 - Gemini API key (get one from [Google AI Studio](https://makersuite.google.com/app/apikey))
 
-## Setup
+## Installation
 
-1. Clone and build:
+### Install from source
+
+1. Clone and install:
    ```bash
+   git clone https://github.com/klutometis/clipboard-mcp.git
    cd clipboard-mcp
-   cargo build --release
+   cargo install --path .
    ```
+
+   This installs the binary to `~/.cargo/bin/clipboard-mcp`.
 
 2. Set your Gemini API key:
    ```bash
@@ -61,13 +66,28 @@ GEMINI_API_KEY="your-key" cargo run --release
 
 ### Configuring in agent-shell / ACP
 
-Add to your MCP configuration:
+Add to your MCP configuration (e.g., `~/.mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "clipboard": {
-      "command": "/path/to/clipboard-mcp/target/release/clipboard-mcp",
+      "command": "clipboard-mcp",
+      "env": {
+        "GEMINI_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+Or with full path if `~/.cargo/bin` is not in your PATH:
+
+```json
+{
+  "mcpServers": {
+    "clipboard": {
+      "command": "/home/yourusername/.cargo/bin/clipboard-mcp",
       "env": {
         "GEMINI_API_KEY": "your-api-key-here"
       }
