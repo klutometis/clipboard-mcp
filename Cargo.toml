@@ -22,3 +22,6 @@ anyhow = "1.0"
 
 # Base64 encoding for images
 base64 = "0.22"
+
+# JSON Schema for tool parameters
+schemars = "1.0"

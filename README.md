@@ -1,6 +1,6 @@
 # clipboard-mcp
 
-An MCP (Model Context Protocol) server that transcribes text from images in your X11 clipboard using Gemini AI.
+An MCP (Model Context Protocol) server that analyzes images in your X11 clipboard using Gemini AI. Supports both text transcription and visual description.
 
 ## Problem Statement
 
@@ -53,8 +53,8 @@ GEMINI_API_KEY="your-key" npx @modelcontextprotocol/inspector \
 This will:
 1. Start a web UI at http://localhost:6274
 2. Connect to your MCP server
-3. Show available tools (you should see `transcribe_clipboard_image`)
-4. Let you test the tool by clicking it
+3. Show available tools (you should see `transcribe_clipboard_image` and `describe_clipboard_image`)
+4. Let you test the tools by clicking them
 
 ### Running the Server Standalone
 
@@ -96,13 +96,22 @@ Or with full path if `~/.cargo/bin` is not in your PATH:
 }
 ```
 
-### Using the Tool
+### Using the Tools
 
-Once configured, you can use the `transcribe_clipboard_image` tool in your agent session:
+Once configured, you can use both tools in your agent session:
 
-1. Copy an image to your clipboard (Ctrl+C in most apps, or screenshot tools)
+#### Transcribe Text
+
+1. Copy an image with text to your clipboard (Ctrl+C in most apps, or screenshot tools)
 2. In your agent session: "Please transcribe the image in my clipboard"
-3. The agent will call the tool and return the extracted text
+3. The agent will call `transcribe_clipboard_image` and return the extracted text
+
+#### Describe Images
+
+1. Copy any image to your clipboard
+2. For a general description: "Describe the image in my clipboard"
+3. For focused analysis: "What UI framework is shown in my clipboard image?"
+4. The agent will call `describe_clipboard_image` with an optional focus parameter
 
 ## Example Use Case
 
@@ -117,23 +126,23 @@ Once configured, you can use the `transcribe_clipboard_image` tool in your agent
 
 1. Reads PNG image data from X11 clipboard via `xclip`
 2. Base64 encodes the image
-3. Sends to Gemini 3 Flash API with transcription prompt
-4. Returns extracted text to the MCP client
+3. Sends to Gemini 3 Flash API with task-specific prompt:
+   - **Transcribe**: Extracts all text exactly as it appears
+   - **Describe**: Provides visual description, optionally focused on specific aspects
+4. Returns the analysis to the MCP client
 
 ## Limitations
 
 - **X11 only**: Uses `xclip`, so Linux/X11 required (not Wayland, macOS, or Windows)
 - **PNG format**: Currently hardcoded to read PNG images from clipboard
-- **Single tool**: MVP focuses on transcription only
 
 ## Future Enhancements
 
-- [ ] Add `describe_clipboard_image` for non-text images
-- [ ] Support file path input (`transcribe_image` tool)
+- [ ] Support file path input (add `transcribe_image` and `describe_image` tools)
 - [ ] Support multiple providers (Claude, GPT)
 - [ ] Support Wayland clipboard (`wl-clipboard`)
 - [ ] Support multiple image formats (JPEG, etc.)
-- [ ] Custom prompt parameter
+- [ ] Custom model selection parameter
 
 ## Development
 

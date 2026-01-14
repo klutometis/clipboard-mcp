@@ -1,9 +1,19 @@
 use base64::Engine;
 use rmcp::{
-    handler::server::router::tool::ToolRouter, model::*, tool, tool_handler, tool_router,
-    transport::stdio, ErrorData as McpError, ServiceExt,
+    handler::server::{router::tool::ToolRouter, wrapper::Parameters},
+    model::*,
+    tool, tool_handler, tool_router,
+    transport::stdio,
+    ErrorData as McpError, ServiceExt,
 };
+use serde::{Deserialize, Serialize};
 use std::process::Command;
+
+#[derive(Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DescribeImageRequest {
+    /// Optional: Specific aspect to focus on (e.g., 'What UI framework is this?', 'Describe the error message', 'What colors are used?')
+    pub focus: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct ClipboardServer {
@@ -37,8 +47,8 @@ impl ClipboardServer {
         Ok(output.stdout)
     }
 
-    /// Send image to Gemini API for transcription
-    async fn transcribe_with_gemini(&self, image_data: Vec<u8>) -> Result<String, String> {
+    /// Send image to Gemini API with a custom prompt
+    async fn analyze_with_gemini(&self, image_data: Vec<u8>, prompt: String) -> Result<String, String> {
         let base64_image = base64::prelude::BASE64_STANDARD.encode(&image_data);
 
         let client = reqwest::Client::new();
@@ -97,7 +107,7 @@ impl ClipboardServer {
                         },
                     },
                     Part::Text {
-                        text: "Transcribe all text from this image exactly as it appears. If there are multiple lines, preserve the line breaks. If there is no text, respond with '[No text found]'.".to_string(),
+                        text: prompt,
                     },
                 ],
             }],
@@ -147,7 +157,8 @@ impl ClipboardServer {
         };
 
         // Send to Gemini for transcription
-        let transcribed_text = match self.transcribe_with_gemini(image_data).await {
+        let prompt = "Transcribe all text from this image exactly as it appears. If there are multiple lines, preserve the line breaks. If there is no text, respond with '[No text found]'.".to_string();
+        let transcribed_text = match self.analyze_with_gemini(image_data, prompt).await {
             Ok(text) => text,
             Err(e) => {
                 return Ok(CallToolResult::error(vec![rmcp::model::Content::text(
@@ -160,6 +171,45 @@ impl ClipboardServer {
             transcribed_text,
         )]))
     }
+
+    #[tool(description = "Describe the contents of an image in the clipboard using Gemini AI. Optionally provide a focus query to get specific information about the image.")]
+    async fn describe_clipboard_image(
+        &self,
+        params: Parameters<DescribeImageRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        // Read image from clipboard
+        let image_data = match self.read_clipboard_image() {
+            Ok(data) => data,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![rmcp::model::Content::text(
+                    format!("Error reading clipboard: {}", e),
+                )]));
+            }
+        };
+
+        // Build prompt based on whether focus is provided
+        let prompt = match &params.0.focus {
+            Some(query) if !query.is_empty() => format!(
+                "Describe this image, focusing specifically on: {}\n\nProvide a clear, detailed response.",
+                query
+            ),
+            _ => "Describe this image in detail. Include what you see, the layout, colors, key elements, and any notable features. If there is text, mention it but don't transcribe it fully unless it's critical to understanding the image.".to_string(),
+        };
+
+        // Send to Gemini for description
+        let description = match self.analyze_with_gemini(image_data, prompt).await {
+            Ok(text) => text,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![rmcp::model::Content::text(
+                    format!("Error describing with Gemini: {}", e),
+                )]));
+            }
+        };
+
+        Ok(CallToolResult::success(vec![rmcp::model::Content::text(
+            description,
+        )]))
+    }
 }
 
 // Implement the server handler
@@ -168,7 +218,7 @@ impl rmcp::ServerHandler for ClipboardServer {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some(
-                "Clipboard image transcription server. Use the transcribe_clipboard_image tool to extract text from images in your clipboard.".into(),
+                "Clipboard image analysis server. Use transcribe_clipboard_image to extract text, or describe_clipboard_image to get visual descriptions of images in your clipboard.".into(),
             ),
             capabilities: ServerCapabilities::builder().enable_tools().build(),
             ..Default::default()

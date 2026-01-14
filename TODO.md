@@ -1,39 +1,67 @@
 # TODO
 
-## MVP: Clipboard Image Transcription MCP Server
+## Current Status: MVP Complete + Description Tool
 
-### Immediate Goal
-Transcribe screenshots of Roblox Studio logs (F9 console) from clipboard.
+### Completed ✓
+- [x] Choose language/SDK - **Rust with rmcp**
+- [x] Set up MCP server skeleton
+- [x] Implement clipboard image reading (X11 via xclip)
+- [x] Implement Gemini API integration (REST)
+- [x] Create `transcribe_clipboard_image` tool
+- [x] Test with Roblox Studio screenshot
+- [x] Basic error handling (no image in clipboard, API failures)
+- [x] Add `describe_clipboard_image` tool with optional focus parameter
 
-### Tech Stack Decision
-- **Language**: TBD - TypeScript, Go, or Rust?
-- **LLM Provider**: Gemini (REST API, no SDK needed)
-- **Clipboard Access**: X11 (`xclip` or similar)
+### In Progress
+None
 
-### MVP Implementation
-- [ ] Choose language/SDK (TypeScript recommended)
-- [ ] Set up MCP server skeleton
-- [ ] Implement clipboard image reading (X11)
-- [ ] Implement Gemini API integration (REST)
-- [ ] Create `transcribe_clipboard_image` tool
-  - Parameters: none for MVP (hardcode Gemini)
-  - Returns: Plain text transcription
-- [ ] Test with Roblox Studio screenshot
-- [ ] Basic error handling (no image in clipboard, API failures)
+### Future Enhancements
 
-### Future Enhancements (post-MVP)
-- [ ] Add `transcribe_image` tool (file path support)
-- [ ] Add `describe_clipboard_image` tool (non-text images)
-- [ ] Support multiple providers (Claude, GPT)
-- [ ] Custom prompt parameter
-- [ ] Better error messages
+#### High Priority
+- [ ] Add file path support
+  - [ ] `transcribe_image` tool (accepts file path)
+  - [ ] `describe_image` tool (accepts file path + optional focus)
+- [ ] Support multiple image formats (JPEG, GIF, WebP)
+  - Currently hardcoded to PNG
+  - Need to detect format or try multiple mime types
 
-### Design Notes
-- Keep it stupid simple for MVP
-- MCP server sends image to Gemini, returns only text (no base64 bloat in ACP)
-- Focus: solve the Roblox screenshot pain point first
-- Extensibility: easy to add more tools/providers later
+#### Medium Priority
+- [ ] Support Wayland clipboard (`wl-clipboard`)
+  - Currently X11-only via xclip
+- [ ] Add custom model selection parameter
+  - Allow choosing between Gemini models (Flash, Pro, etc.)
+- [ ] Better error messages and validation
+  - Detect empty clipboard before calling Gemini
+  - Provide helpful error messages
+
+#### Low Priority
+- [ ] Support multiple LLM providers
+  - Claude (Anthropic)
+  - GPT-4 Vision (OpenAI)
+  - Make provider configurable per-request or via env var
+
+#### Nice to Have
+- [ ] Caching support (avoid re-analyzing same image)
+- [ ] Batch processing (multiple images at once)
+- [ ] Custom prompts as parameters (advanced users)
+
+### Design Decisions Made
+
+1. **Separate tools** (transcribe vs describe) rather than combined
+   - Different prompts for different tasks
+   - Clear semantics and failure modes
+   - Easier to optimize individually
+
+2. **Optional focus parameter** via `Parameters<DescribeImageRequest>` struct
+   - `Option<String>` in struct, not function parameter
+   - Workaround for rmcp 0.12 limitations with optional params
+
+3. **Rust + rmcp SDK** over TypeScript
+   - Better performance
+   - Strong typing
+   - Native binary (no Node.js runtime needed)
 
 ### Open Questions
-- Which language? (need to decide before scaffolding)
-- Gemini API key configuration? (env var probably fine for MVP)
+- Should we add streaming support for long transcriptions?
+- How to handle very large images (size limits)?
+- Should we add OCR fallback for low-quality images?
